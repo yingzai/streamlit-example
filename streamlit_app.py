@@ -1,38 +1,55 @@
-from collections import namedtuple
-import altair as alt
-import math
 import pandas as pd
 import streamlit as st
+import datetime
+import re
+import base64
 
-"""
-# Welcome to Streamlit!
+def download_csv(name,df):
+    
+    csv = df.to_csv(index=False)
+    base = base64.b64encode(csv.encode()).decode()
+    file = (f'<a href="data:file/csv;base64,{base}" download="%s.csv">Download file</a>' % (name))
+    
+    return file
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
+def df_filter(message,df):
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+        slider_1, slider_2 = st.slider('%s' % (message),0,len(df)-1,[0,len(df)-1],1)
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+        while len(str(df.iloc[slider_1][1]).replace('.0','')) < 4:
+            df.iloc[slider_1,1] = '0' + str(df.iloc[slider_1][1]).replace('.0','')
+            
+        while len(str(df.iloc[slider_2][1]).replace('.0','')) < 4:
+            df.iloc[slider_2,1] = '0' + str(df.iloc[slider_1][1]).replace('.0','')
 
+        start_date = datetime.datetime.strptime(str(df.iloc[slider_1][0]).replace('.0','') + str(df.iloc[slider_1][1]).replace('.0',''),'%Y%m%d%H%M%S')
+        start_date = start_date.strftime('%d %b %Y, %I:%M%p')
+        
+        end_date = datetime.datetime.strptime(str(df.iloc[slider_2][0]).replace('.0','') + str(df.iloc[slider_2][1]).replace('.0',''),'%Y%m%d%H%M%S')
+        end_date = end_date.strftime('%d %b %Y, %I:%M%p')
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
+        st.info('Start: **%s** End: **%s**' % (start_date,end_date))
+        
+        filtered_df = df.iloc[slider_1:slider_2+1][:].reset_index(drop=True)
 
-    Point = namedtuple('Point', 'x y')
-    data = []
+        return filtered_df
 
-    points_per_turn = total_points / num_turns
+if __name__ == '__main__':
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
+    df = pd.read_csv('./data.csv')
 
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+    st.title('Datetime Filter')
+    filtered_df = df_filter('Move sliders to filter dataframe',df)
+
+    column_1, column_2 = st.beta_columns(2)
+
+    with column_1:
+        st.title('Data Frame')
+        st.write(filtered_df)
+
+    with column_2:
+        st.title('Chart')
+        st.line_chart(filtered_df['value'])
+
+    st.markdown(download_csv('Filtered Data Frame',filtered_df),unsafe_allow_html=True)
+    
