@@ -1,5 +1,2 @@
 pandas
 streamlit
-datetime
-re
-base64
